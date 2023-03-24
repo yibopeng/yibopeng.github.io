@@ -110,7 +110,17 @@
         .social-media li {
          margin-bottom: 10px;
         }
+  /* 媒体查询：针对小于等于600px宽度的屏幕 */
+  @media (max-width: 600px) {
+    .content-columns {
+      flex-direction: column;
+    }
 
+    .left-column,
+    .right-column {
+      width: 100%;
+    }
+  }
     </style>
 </head>
 
