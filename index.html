@@ -58,6 +58,7 @@
             font-size: 16px;
             margin-top: 1rem;
             margin-bottom: 1rem;
+            font-weight: normal;
         }
 
         p {
@@ -236,7 +237,7 @@
 
             const userInput = document.getElementById('input-content').value.trim(); // 获取用户输入并去除两端的空白字符
             if (userInput) {
-                const targetUrl = 'https://sctapi.ftqq.com/SCT144611TYekQXtFz8kD1PX44uQAzGR1L.send?title=Someone%20sent%20a%20message&desp=${userInput}`;
+                const targetUrl = `https://sctapi.ftqq.com/SCT144611TYekQXtFz8kD1PX44uQAzGR1L.send?title=Someone%20sent%20a%20message&desp=${userInput}`;
                 const payload = JSON.stringify({ data: userInput });
 
                 const xhr = new XMLHttpRequest();
@@ -269,7 +270,7 @@
         retryButton.addEventListener('click', () => {
             const userInput = document.getElementById('input-content').value.trim();
             if (userInput) {
-                const targetUrl = 'https://sctapi.ftqq.com/SCT144611TYekQXtFz8kD1PX44uQAzGR1L.send?title=Someone%20sent%20a%20message&desp=${userInput}`;
+                const targetUrl = `https://sctapi.ftqq.com/SCT144611TYekQXtFz8kD1PX44uQAzGR1L.send?title=Someone%20sent%20a%20message&desp=${userInput}`;
                 const payload = JSON.stringify({ data: userInput });
 
                 const xhr = new XMLHttpRequest();
