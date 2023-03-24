@@ -29,14 +29,19 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
   
-        main {
-          display: flex;
-          justify-content: space-between;
-         }
 
-          .left-section, .right-section {
-            width: 48%;
-         }
+        .columns {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        .left-column,
+        .right-column {
+            flex-basis: 45%;
+        }
+
+
         
         h1 {
             font-size: 32px;
@@ -105,7 +110,13 @@
         .social-media li {
          margin-bottom: 10px;
         }
+        a {
+            color: #333;
+            text-decoration: none;
+        }
 
+        a:hover {
+            color: #555;
     </style>
 </head>
 
@@ -123,9 +134,9 @@
         </section>
         
         
-   <!-- 左侧部分 -->
-    <div class="left-section">
-      <!-- 在这里添加左侧的内容 -->
+      <div class="columns">
+            <section class="left-column">
+
         
         
         <section class="blog-posts">
@@ -163,12 +174,12 @@
 </section>
 
         
- </div>         
+</section> 
         
-     <!-- 右侧部分 -->
-    <div class="right-section">
-      <!-- 在这里添加右侧的内容 -->
-        
+<section class="right-column">
+
+    
+
  <section class="urls">
     <h2>一些链接</h2>
     <ul>
@@ -184,7 +195,7 @@
         </li>
     </ul>
 </section>
-        
+</section>        
      </div>       
 
       
