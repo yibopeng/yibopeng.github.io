@@ -216,38 +216,85 @@
              <button type="submit">发送</button>
          </form>
          <div id="success-message" style="display:none;">
-             已发送成功！
+             已发送成功！<br>
+            <button id="reset-button">重置</button>
          </div>
+         <div id="error-message" style="display:none;">
+            发送失败，请稍后重试！<br>
+            <button id="retry-button">重试</button>
+        </div>
      </section>
+    <script>
+        const form = document.getElementById('webhook-form');
+        const successMessage = document.getElementById('success-message');
+        const resetButton = document.getElementById('reset-button');
+        const errorMessage = document.getElementById('error-message');
+        const retryButton = document.getElementById('retry-button');
 
-     <script>
-         const form = document.getElementById('webhook-form');
-         const successMessage = document.getElementById('success-message');
+        form.addEventListener('submit', (event) => {
+            event.preventDefault(); // 阻止表单的默认提交行为
 
-         form.addEventListener('submit', (event) => {
-             event.preventDefault(); // 阻止表单的默认提交行为
+            const userInput = document.getElementById('input-content').value.trim(); // 获取用户输入并去除两端的空白字符
+            if (userInput) {
+                const targetUrl = 'https://sctapi.ftqq.com/SCT144611TYekQXtFz8kD1PX44uQAzGR1L.send?title=Someone%20sent%20a%20message&desp=${userInput}';
+                const payload = JSON.stringify({ content: userInput });
 
-             const userInput = document.getElementById('input-content').value.trim(); // 获取用户输入并去除两端的空白字符
-             if (userInput) {
-                 const targetUrl = `https://sctapi.ftqq.com/SCT144611TYekQXtFz8kD1PX44uQAzGR1L.send?title=访问+1&desp=${userInput}`;
-                 const payload = JSON.stringify({ data: userInput });
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', targetUrl);
+                xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        successMessage.style.display = 'block';
+                        form.style.display = 'none';
+                    } else {
+                        errorMessage.style.display = 'block';
+                        form.style.display = 'none';
+                    }
+                };
+                xhr.onerror = () => {
+                    errorMessage.style.display = 'block';
+                    form.style.display = 'none';
+                };
+                xhr.send(payload);
+            }
+        });
 
-                 const xhr = new XMLHttpRequest();
-                 xhr.open('POST', targetUrl);
-                 xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-                 xhr.onreadystatechange = () => {
-                     if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
-                         successMessage.style.display = 'block';
-                         form.style.display = 'none';
-                     }
-                 };
-                 xhr.send(payload);
-             }
-         });
-     </script> 
+        resetButton.addEventListener('click', () => {
+            form.reset();
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+            form.style.display = 'block';
+        });
 
+        retryButton.addEventListener('click', () => {
+            const userInput = document.getElementById('input-content').value.trim();
+            if (userInput) {
+                const targetUrl = 'https://sctapi.ftqq.com/SCT144611TYekQXtFz8kD1PX44uQAzGR1L.send?title=Someone%20sent%20a%20message&desp=${userInput}';
+                const payload = JSON.stringify({ content: userInput });
 
-    
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', targetUrl);
+                xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        successMessage.style.display = 'block';
+                        errorMessage.style.display = 'none';
+                        form.style.display = 'none';
+                    } else {
+                        errorMessage.style.display = 'block';
+                        successMessage.style.display = 'none';
+                        form.style.display = 'none';
+                    }
+                };
+                xhr.onerror = () => {
+                    errorMessage.style.display = 'block';
+                    successMessage.style.display ='none';
+form.style.display = 'none';
+};
+xhr.send(payload);
+}
+});
+</script>
     
 </section>        
      </div>       
