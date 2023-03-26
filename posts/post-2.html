@@ -3,44 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的个人博客 - 博客文章2</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>博客文章2 - 有趣的内容</title>
     <style>
-        /* 除了在这里的样式，其余的样式可以放在styles.css文件中 */
-        .content {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
         }
-       .content-box {
-        width: calc(50% - 1rem);
+            header {
+        background-color: #333;
+        color: white;
+        text-align: center;
         padding: 1rem;
-        background-color: #f4f4f4;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-radius: 6px;
     }
 
-    .content-box img {
-        max-width: 100%;
-        height: auto;
+    main {
+        padding: 2rem;
     }
-</style>
-  <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的个人博客 - 博客文章2</title>
-    <link rel="stylesheet" href="styles.css">
-    <style>
-        /* 除了在这里的样式，其余的样式可以放在styles.css文件中 */
-        .content {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-css
-Copy code
+
+    h1 {
+        font-size: 24px;
+    }
+
+    h2 {
+        font-size: 20px;
+    }
+
+    p {
+        font-size: 16px;
+    }
+
+    ul {
+        list-style: none;
+        padding: 0;
+    }
+
+    li {
+        margin-bottom: 10px;
+    }
+
+    a {
+        color: #333;
+        text-decoration: none;
+    }
+
+    a:hover {
+        color: #555;
+    }
+
+    .content {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
     .content-box {
         width: calc(50% - 1rem);
         padding: 1rem;
@@ -57,10 +74,10 @@ Copy code
 </head>
 <body>
     <header>
-        <h1>我的个人博客</h1>
+        <h1><a href="index.html">我的个人博客</a></h1>
     </header>
     <main>
-        <h2>有趣的内容</h2>
+        <h2>博客文章2:有趣的内容</h2>
         <div class="content">
             <div class="content-box">
                 <h3>奇妙的视觉错觉</h3>
@@ -80,10 +97,12 @@ Copy code
             </div>
             <div class="content-box">
                 <h3>探秘世界各地的神秘现象</h3>
-                <p>世界各地隐藏着许多令人惊叹的神秘现象。本文将带你深入了解这些奇妙的事物。</p>
-                <a href="post-2-4.html">阅读更多</a>
-            </div>
-        </div>
-    </main>
+<p>世界各地隐藏着许多令人惊叹的神秘现象。本文将带你深入了解这些奇妙的事物。</p>
+<a href="post-2-4.html">阅读更多</a>
+</div>
+</div>
+<p><a href="/index.html">返回文章列表</a></p>
+</main>
+
 </body>
 </html>
