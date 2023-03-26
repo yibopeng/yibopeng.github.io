@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的个人博客 - 互动内容</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        header {
+            background-color: #3f51b5;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        main {
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: #3f51b5;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+
+        .btn:hover {
+            background-color: #1a237e;
+        }
+
+        /* 其他样式... */
+
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1><a href="/index.html">我的个人博客</a></h1>
+    </header>
+    <main>
+        <h1>欢迎来到我的博客！</h1>
+        <p>在这里，你可以查看我的最新博客文章，并与其他用户进行交互。</p>
+
+        <h2>评论区</h2>
+        <ul id="comment-list">
+            <li>感谢分享，这篇文章真的很有启发！</li>
+            <li>我觉得你的观点很有趣，不过我有一些疑问...</li>
+            <li>很喜欢你的博客，期待更多的内容！</li>
+        </ul>
+
+        <h3>添加评论</h3>
+        <form id="comment-form">
+            <div>
+                <label for="name">姓名：</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div>
+                <label for="comment">评论：</label>
+                <textarea id="comment" name="comment" required></textarea>
+            </div>
+            <div>
+                <button type="submit" class="btn">提交</button>
+            </div>
+        </form>
+    </main>
+
+    <script>
+        const commentForm = document.getElementById('comment-form');
+        const commentList = document.getElementById('comment-list');
+
+        commentForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            const nameInput = document.getElementById('name');
+            const commentInput = document.getElementById('comment');
+
+            const name = nameInput.value;
+            const comment = commentInput.value;
+
+            const commentItem = document.createElement('li');
+            commentItem.innerText = `${name}: ${comment}`;
+
+            commentList.appendChild(commentItem);
+
+            nameInput.value = '';
+            commentInput.value = '';
+        });
+    </script>
+</body>
+
+</html>
