@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://yibopeng.github.io/sitemap.xml
