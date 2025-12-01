@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的个人博客</title>
+    <title>Yibo Peng | Personal Academic Site</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -28,21 +28,7 @@
             background-color: white;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-  
 
-        .columns {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-        }
-
-        .left-column,
-        .right-column {
-            flex-basis: 45%;
-        }
-
-
-        
         h1 {
             font-size: 32px;
             margin-bottom: 1rem;
@@ -53,21 +39,13 @@
             margin-top: 2rem;
             margin-bottom: 1rem;
         }
-        
-        h3 {
-            font-size: 16px;
-            margin-top: 1rem;
-            margin-bottom: 1rem;
-            font-weight: normal;
-        }
 
         p {
             font-size: 16px;
         }
 
         ul {
-            list-style: none;
-            padding: 0;
+            padding-left: 1.2rem;
         }
 
         li {
@@ -87,7 +65,7 @@
         .about-me {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             margin-bottom: 2rem;
         }
@@ -97,220 +75,101 @@
             height: 150px;
             border-radius: 50%;
             margin-right: 1rem;
+            object-fit: cover;
         }
-        .urls img {
-            width: 200px;  /* 设置图片宽度 */
-            height: auto;  /* 保持图片的原始纵横比 */
+
+        .about-text {
+            max-width: 600px;
         }
-        .blog-post {
+
+        .section {
             margin-bottom: 2rem;
         }
-        .social-media {
-            margin-bottom: 2rem;
-        }       
 
-        .social-media ul {
-           list-style: none;
-           padding: 0;
+        @media (max-width: 768px) {
+            .about-me {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .about-me img {
+                margin-right: 0;
+                margin-bottom: 1rem;
+            }
+
+            .about-text {
+                max-width: 100%;
+            }
         }
-
-        .social-media li {
-         margin-bottom: 10px;
-        }
-  /* 媒体查询：针对小于等于600px宽度的屏幕 */
-    @media (max-width: 768px) {
-    .columns {
-      flex-direction: column;
-    }
-
-    .left-column,
-    .right-column {
-      width: 100%;
-    }
-  }
     </style>
 </head>
 
 <body>
     <header>
-        <h1>我的个人博客</h1>
+        <h1>Yibo Peng</h1>
+        <p>Developmental and Educational Psychology</p>
     </header>
+
     <main>
+        <!-- About Me -->
         <section class="about-me">
-            <img src="pic/photo.jpeg" alt="你的照片">
-            <div>
-                <h2>关于我</h2>
-                <p>你好！我是一名心理学专业的学生，这是我尝试用GitHub Page搭建的个人博客。</p>
+            <img src="pic/photo.jpeg" alt="Photo of Yibo Peng">
+            <div class="about-text">
+                <h2>About Me</h2>
+                <p>
+                    I am a PhD candidate in developmental and educational psychology. 
+                    My research focuses on children's cognitive development and social behavior, 
+                    with a particular emphasis on interpersonal interaction and joint attention 
+                    in children with autism spectrum disorder (ASD).
+                </p>
             </div>
         </section>
-        
-        
-      <div class="columns">
-            <section class="left-column">
 
-        
-        
-        <section class="blog-posts">
-            <h2>博客文章</h2>
+        <!-- Research Interests -->
+        <section class="section">
+            <h2>Research Interests</h2>
             <ul>
-                <li class="blog-post">
-                    <a href="posts/post-1.html">博客文章1</a>
+                <li>Children’s cognitive development and social decision-making</li>
+                <li>Interpersonal interaction and cooperation in childhood</li>
+                <li>Joint attention and joint action, especially in children with ASD</li>
+                <li>Third-party intervention, fairness, and social norms in development</li>
+            </ul>
+        </section>
+
+        <!-- Publications -->
+        <section class="section">
+            <h2>Publications</h2>
+            <ul>
+                <li>
+                    Peng, Y., Yan, L., Chen, Y., Li, J., Wang, Z., &amp; Zhu, L. (2026). 
+                    The development of third-party intervention in children aged 4–10: 
+                    Balancing unfairness aversion and self-interest. 
+                    <em>Journal of Experimental Child Psychology, 263</em>, 106417. 
+                    <a href="https://doi.org/10.1016/j.jecp.2025.106417" target="_blank" rel="noopener noreferrer">
+                        https://doi.org/10.1016/j.jecp.2025.106417
+                    </a>
                 </li>
-                <li class="blog-post">
-                    <a href="posts/post-2.html">博客文章2</a>
+                <li>
+                    Peng, Y., Tang, J., &amp; Li, H. (2021). 
+                    Good deeds could come from frustrated individuals. 
+                    <em>Frontiers in Psychology, 12</em>, 631711. 
+                    <a href="https://doi.org/10.3389/fpsyg.2021.631711" target="_blank" rel="noopener noreferrer">
+                        https://doi.org/10.3389/fpsyg.2021.631711
+                    </a>
                 </li>
-                <li class="blog-post">
-                    <a href="posts/post-3.html">博客文章3</a>
-</li>
-</ul>
-</section>
-        
-  
+            </ul>
+        </section>
 
-       
-        
- <section class="social-media">
-    <h2>联系方式</h2>
-    <ul>
-        <li>
-            <strong>Email:</strong> <a href="mailto:yibo_peng@163.com">yibo_peng@163.com</a>
-        </li>
-        <li>
-            <strong>WeChat:</strong> Experimenter_1
-        </li>
-        <li>
-            <strong>ORCID:</strong> <a href="https://orcid.org/0000-0001-9093-8905" target="_blank" rel="noopener noreferrer">0000-0001-9093-8905</a>
-        </li>
-    </ul>
-</section>
-
-        
-</section> 
-        
-<section class="right-column">
-
-    
-
- <section class="urls">
-    <h2>一些链接</h2>
-    <ul>
-        <li class="urls">
-            <a href="https://www.google.com" target="_blank" rel="noopener noreferrer">访问谷歌</a>
-        </li>
-        <li class="urls">
-            <a href="https://generator.email" target="_blank" rel="noopener noreferrer">Email Generator</a>
-        </li>
-        <li class="urls">
-            <a href="https://notion.so" target="_blank" rel="noopener noreferrer">Notion</a>
-        </li>
-        <li class="urls">
-            <a href="http://raspberry.vip.cpolar.cn/wordpress/" target="_blank" rel="noopener noreferrer">我的另一个网站</a>
-        </li>
-        
-
-        <li class="urls">
-          <h2>一个Webhook二维码</h2>
-          <h3>扫描它会让我知道你扫了它一次~</h3>  
-          <img src="pic/webhook.png" alt="扫描它会给我发送一条webhook信息~">
-        </li>
-    </ul>
-</section>
-    
-    
-    <section>
-        <h2>通过Webhook向我传递信息</h2>
-        <h3>只需在下方文本框中输入你想传递的信息，然后点击发送，便能将信息通过Webhook传送给我。</h3>        
-        <form id="webhook-form">
-             <label for="input-content">输入内容：</label>
-             <input type="text" id="input-content" required>
-             <button type="submit">发送</button>
-         </form>
-         <div id="success-message" style="display:none;">
-             已发送成功！<br>
-            <button id="reset-button">重置</button>
-         </div>
-         <div id="error-message" style="display:none;">
-            发送失败，请稍后重试！<br>
-            <button id="retry-button">重试</button>
-        </div>
-     </section>
-    <script>
-        const form = document.getElementById('webhook-form');
-        const successMessage = document.getElementById('success-message');
-        const resetButton = document.getElementById('reset-button');
-        const errorMessage = document.getElementById('error-message');
-        const retryButton = document.getElementById('retry-button');
-
-        form.addEventListener('submit', (event) => {
-            event.preventDefault(); // 阻止表单的默认提交行为
-
-            const userInput = document.getElementById('input-content').value.trim(); // 获取用户输入并去除两端的空白字符
-            if (userInput) {
-                const targetUrl = `https://sctapi.ftqq.com/SCT144611TYekQXtFz8kD1PX44uQAzGR1L.send?title=Someone%20sent%20a%20message&desp=${userInput}`;
-                const payload = JSON.stringify({ data: userInput });
-
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', targetUrl);
-                xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-                xhr.onload = () => {
-                    if (xhr.status === 200) {
-                        successMessage.style.display = 'block';
-                        form.style.display = 'none';
-                    } else {
-                        errorMessage.style.display = 'block';
-                        form.style.display = 'none';
-                    }
-                };
-                xhr.onerror = () => {
-                    errorMessage.style.display = 'block';
-                    form.style.display = 'none';
-                };
-                xhr.send(payload);
-            }
-        });
-
-        resetButton.addEventListener('click', () => {
-            form.reset();
-            successMessage.style.display = 'none';
-            errorMessage.style.display = 'none';
-            form.style.display = 'block';
-        });
-
-        retryButton.addEventListener('click', () => {
-            const userInput = document.getElementById('input-content').value.trim();
-            if (userInput) {
-                const targetUrl = `https://sctapi.ftqq.com/SCT144611TYekQXtFz8kD1PX44uQAzGR1L.send?title=Someone%20sent%20a%20message&desp=${userInput}`;
-                const payload = JSON.stringify({ data: userInput });
-
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', targetUrl);
-                xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-                xhr.onload = () => {
-                    if (xhr.status === 200) {
-                        successMessage.style.display = 'block';
-                        errorMessage.style.display = 'none';
-                        form.style.display = 'none';
-                    } else {
-                        errorMessage.style.display = 'block';
-                        successMessage.style.display = 'none';
-                        form.style.display = 'none';
-                    }
-                };
-                xhr.onerror = () => {
-                    errorMessage.style.display = 'block';
-                    successMessage.style.display ='none';
-form.style.display = 'none';
-};
-xhr.send(payload);
-}
-});
-</script>
-    
-</section>        
-     </div>       
-
-      
-</main>
-
+        <!-- Contact -->
+        <section class="section">
+            <h2>Contact</h2>
+            <p>
+                Email:
+                <a href="mailto:pengyb@psych.ac.cn">pengyb@psych.ac.cn</a>
+            </p>
+        </section>
+    </main>
 </body>
+
 </html>
