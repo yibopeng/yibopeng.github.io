@@ -354,8 +354,8 @@
 </section>
 
 
+<!-- ===== pengyibot Live (REALTIME, fixed deps) ===== -->
 
-<!-- ===== pengyibot Live (REALTIME) ===== -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
 
 <section id="lichess-live" style="max-width: 980px; margin: 24px auto; padding: 0 16px;">
@@ -367,14 +367,15 @@
   </p>
 
   <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; opacity:.85; margin-bottom:10px;">
-    <span id="ply-status">Checking live game…</span>
+    <span id="ply-status">Initializing…</span>
     <a id="ply-link" href="https://lichess.org/@/pengyibot" target="_blank" rel="noopener">Open on Lichess</a>
     <a href="https://lichess.org/@/pengyibot/tv" target="_blank" rel="noopener">Open TV page</a>
   </div>
 
   <div style="display:grid; grid-template-columns: minmax(280px, 520px) 1fr; gap:16px; align-items:start;">
     <div>
-      <div id="ply-board" style="width:100%; max-width:520px;"></div>
+      <!-- 给一个 min-height，避免渲染失败时整块消失 -->
+      <div id="ply-board" style="width:100%; max-width:520px; min-height:320px;"></div>
       <div id="ply-meta" style="margin-top:10px; opacity:.75; font-size:14px;"></div>
     </div>
 
@@ -385,6 +386,9 @@
     </div>
   </div>
 </section>
+
+<!-- chessboard.js 需要 jQuery：一定要放在它之前 -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.12.0/chess.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
@@ -404,8 +408,8 @@
   let currentGameId = null;
   let streamAbort = null;
 
-  function setStatus(text) { statusEl.textContent = text; }
-  function setLinkGame(gameId) {
+  function setStatus(t) { statusEl.textContent = t; }
+  function setLink(gameId) {
     if (gameId) {
       linkEl.href = `https://lichess.org/${gameId}`;
       linkEl.textContent = "Open current game";
@@ -416,21 +420,26 @@
   }
 
   function ensureBoard() {
-    if (!board) {
-      board = Chessboard("ply-board", {
-        position: "start",
-        draggable: false
-      });
-      // responsive-ish
-      window.addEventListener("resize", () => board.resize());
-    }
+    if (board) return;
+
+    // 关键：指定棋子图片的 CDN 路径，否则 GitHub Pages 下默认相对路径会 404
+    const pieceCdn = "https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png";
+
+    board = Chessboard("ply-board", {
+      position: "start",
+      draggable: false,
+      pieceTheme: pieceCdn
+    });
+
+    window.addEventListener("resize", () => board.resize());
   }
 
   function uciToMoveObj(uci) {
-    const from = uci.slice(0, 2);
-    const to = uci.slice(2, 4);
-    const promotion = uci.length > 4 ? uci[4] : undefined;
-    return { from, to, promotion };
+    return {
+      from: uci.slice(0, 2),
+      to: uci.slice(2, 4),
+      promotion: uci.length > 4 ? uci[4] : undefined
+    };
   }
 
   function renderMoves() {
@@ -452,10 +461,8 @@
     if (movesStr && movesStr.trim()) {
       const list = movesStr.trim().split(/\s+/);
       for (const uci of list) {
-        const mv = uciToMoveObj(uci);
-        // chess.js accepts {from,to,promotion}
-        const ok = game.move(mv);
-        if (!ok) break; // stop if anything unexpected
+        const ok = game.move(uciToMoveObj(uci));
+        if (!ok) break;
       }
     }
 
@@ -464,17 +471,15 @@
   }
 
   async function fetchCurrentGameId() {
-    // Most direct: current-game
+    // 用 current-game 拿正在进行的那盘（不需要 token）
     const url = `https://lichess.org/api/user/${encodeURIComponent(USER)}/current-game?pgnInJson=true&_=${Date.now()}`;
     const res = await fetch(url, {
       headers: { "accept": "application/json" },
       cache: "no-store"
     });
     if (!res.ok) return null;
-
     const data = await res.json();
-    const id = data?.id || data?.gameId || data?.game?.id || null;
-    return id;
+    return data?.id || data?.gameId || data?.game?.id || null;
   }
 
   function stopStream() {
@@ -489,12 +494,11 @@
     streamAbort = new AbortController();
 
     currentGameId = gameId;
-    setLinkGame(gameId);
-    setStatus(`Currently playing — game id: ${gameId}`);
+    setLink(gameId);
+    setStatus("Currently playing — connecting live stream…");
     metaEl.textContent = "";
     movesEl.textContent = "";
 
-    // Stream updates in (NDJSON)
     const url = `https://lichess.org/api/stream/game/${encodeURIComponent(gameId)}`;
     const res = await fetch(url, {
       headers: { "accept": "application/x-ndjson" },
@@ -503,9 +507,12 @@
     });
 
     if (!res.ok || !res.body) {
-      setStatus("Live stream unavailable — retrying…");
+      setStatus("Live stream unavailable (network/CORS).");
       return;
     }
+
+    setStatus("Currently playing — live stream connected.");
+    ensureBoard();
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -527,18 +534,13 @@
         try { msg = JSON.parse(s); } catch { continue; }
 
         if (msg.type === "gameFull") {
-          // initial snapshot
           const w = msg?.white?.name || msg?.white?.id || "";
           const b = msg?.black?.name || msg?.black?.id || "";
           const opp = (w && b) ? ((String(w).toLowerCase() === USER) ? b : w) : "";
           metaEl.textContent = opp ? `Opponent: ${opp}` : "";
-
           applyUciMoves(msg?.state?.moves || "");
         } else if (msg.type === "gameState") {
-          // incremental updates
           applyUciMoves(msg?.moves || "");
-        } else if (msg.type === "chatLine") {
-          // ignore
         }
       }
     }
@@ -546,41 +548,36 @@
 
   async function mainLoop() {
     try {
+      ensureBoard();
+      setStatus("Checking live game…");
+
       const id = await fetchCurrentGameId();
 
       if (!id) {
-        // no ongoing game
-        if (currentGameId) {
-          currentGameId = null;
-          stopStream();
-        }
-        setLinkGame(null);
         setStatus("No ongoing game.");
+        setLink(null);
+        stopStream();
         return;
       }
 
       if (id !== currentGameId) {
-        await startStream(id); // start realtime streaming
+        await startStream(id);
       } else {
-        // already streaming the same game
-        setStatus(`Currently playing — game id: ${id}`);
+        setStatus("Currently playing — live stream connected.");
       }
     } catch (e) {
-      // network / CORS / transient issues
-      setStatus("Failed to detect live game — retrying…");
+      setStatus("Failed to initialize live view. Open DevTools Console to see the error.");
+      // 常见错误：Chessboard 未定义 / CORS / CDN 加载失败
+      console.error(e);
     }
   }
 
-  ensureBoard();
   mainLoop();
-  // check whether a NEW game started (stream handles move updates; polling only for game switches)
-  setInterval(mainLoop, 8000);
+  setInterval(mainLoop, 8000); // 只用于“换盘检测”，走子更新靠 stream
 })();
 </script>
-<!-- ===== /pengyibot Live (REALTIME) ===== -->
 
-
-
+<!-- ===== /pengyibot Live ===== -->
 
 
 
