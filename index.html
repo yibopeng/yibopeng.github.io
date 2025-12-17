@@ -354,185 +354,239 @@
 </section>
 
 
+
+<!-- ===== pengyibot Live (REALTIME) ===== -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
+
 <section id="lichess-live" style="max-width: 980px; margin: 24px auto; padding: 0 16px;">
-  <h2 style="margin: 0 0 8px;">♟️ pengyibot Live</h2>
+  <h2 style="margin: 0 0 8px;">pengyibot Live</h2>
 
   <p style="margin: 0 0 10px; opacity: .85; line-height: 1.5;">
     This is a live view of my Lichess bot <strong>pengyibot</strong>.
-    When the bot is playing, the board will refresh automatically as the game progresses.
+    The board updates in real time while the bot is playing.
   </p>
 
   <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; opacity:.85; margin-bottom:10px;">
-    <span id="lichess-status">Checking live game…</span>
-    <span id="lichess-updated" style="opacity:.7;"></span>
-    <a id="lichess-game-link" href="https://lichess.org/@/pengyibot" target="_blank" rel="noopener">
-      Open on Lichess
-    </a>
-    <a href="https://lichess.org/@/pengyibot/tv" target="_blank" rel="noopener">
-      Open TV page
-    </a>
+    <span id="ply-status">Checking live game…</span>
+    <a id="ply-link" href="https://lichess.org/@/pengyibot" target="_blank" rel="noopener">Open on Lichess</a>
+    <a href="https://lichess.org/@/pengyibot/tv" target="_blank" rel="noopener">Open TV page</a>
   </div>
 
-  <iframe
-    id="lichess-iframe"
-    title="Lichess game embed"
-    style="width:100%; aspect-ratio: 600 / 397; border:0;"
-    loading="lazy"
-  ></iframe>
+  <div style="display:grid; grid-template-columns: minmax(280px, 520px) 1fr; gap:16px; align-items:start;">
+    <div>
+      <div id="ply-board" style="width:100%; max-width:520px;"></div>
+      <div id="ply-meta" style="margin-top:10px; opacity:.75; font-size:14px;"></div>
+    </div>
+
+    <div style="min-width:260px;">
+      <div style="font-weight:600; margin-bottom:8px;">Moves</div>
+      <div id="ply-moves" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+                                font-size:14px; line-height:1.6; white-space:pre-wrap; opacity:.9;"></div>
+    </div>
+  </div>
 </section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.12.0/chess.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
 
 <script>
 (() => {
   const USER = "pengyibot";
 
-  const statusEl  = document.getElementById("lichess-status");
-  const updatedEl = document.getElementById("lichess-updated");
-  const iframe    = document.getElementById("lichess-iframe");
-  const gameLink  = document.getElementById("lichess-game-link");
+  const statusEl = document.getElementById("ply-status");
+  const linkEl   = document.getElementById("ply-link");
+  const metaEl   = document.getElementById("ply-meta");
+  const movesEl  = document.getElementById("ply-moves");
 
-  const STORAGE_KEY = "lichess_last_game_" + USER;
+  let board = null;
+  let game  = new Chess();
 
   let currentGameId = null;
-  let lastMoveSig = null;
+  let streamAbort = null;
 
-  function nowStr() {
-    const d = new Date();
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  }
-
-  function setUpdated() {
-    updatedEl.textContent = `Last checked: ${nowStr()}`;
-  }
-
-  function setGameLink(gameId) {
+  function setStatus(text) { statusEl.textContent = text; }
+  function setLinkGame(gameId) {
     if (gameId) {
-      gameLink.href = `https://lichess.org/${gameId}`;
-      gameLink.textContent = "Open current game";
+      linkEl.href = `https://lichess.org/${gameId}`;
+      linkEl.textContent = "Open current game";
     } else {
-      gameLink.href = `https://lichess.org/@/${USER}`;
-      gameLink.textContent = "Open on Lichess";
+      linkEl.href = `https://lichess.org/@/${USER}`;
+      linkEl.textContent = "Open on Lichess";
     }
   }
 
-  // Force a real reload (some browsers/cache layers can be stubborn)
-  function hardReloadEmbed(gameId) {
-    const base = `https://lichess.org/embed/${gameId}?theme=auto&bg=auto`;
-    iframe.src = "about:blank";
-    setTimeout(() => {
-      iframe.src = base + `&t=${Date.now()}`; // cache-buster
-    }, 60);
+  function ensureBoard() {
+    if (!board) {
+      board = Chessboard("ply-board", {
+        position: "start",
+        draggable: false
+      });
+      // responsive-ish
+      window.addEventListener("resize", () => board.resize());
+    }
   }
 
-  // 1) Most reliable for "is user currently playing": /api/user/<u>/current-game
-  async function fetchCurrentGame() {
-    const url = `https://lichess.org/api/user/${encodeURIComponent(USER)}/current-game?pgnInJson=true`;
+  function uciToMoveObj(uci) {
+    const from = uci.slice(0, 2);
+    const to = uci.slice(2, 4);
+    const promotion = uci.length > 4 ? uci[4] : undefined;
+    return { from, to, promotion };
+  }
+
+  function renderMoves() {
+    const hist = game.history(); // SAN list
+    let out = "";
+    for (let i = 0; i < hist.length; i += 2) {
+      const moveNo = (i / 2) + 1;
+      const w = hist[i] || "";
+      const b = hist[i + 1] || "";
+      out += `${moveNo}. ${w}${b ? " " + b : ""}\n`;
+    }
+    movesEl.textContent = out.trim();
+  }
+
+  function applyUciMoves(movesStr) {
+    ensureBoard();
+    game.reset();
+
+    if (movesStr && movesStr.trim()) {
+      const list = movesStr.trim().split(/\s+/);
+      for (const uci of list) {
+        const mv = uciToMoveObj(uci);
+        // chess.js accepts {from,to,promotion}
+        const ok = game.move(mv);
+        if (!ok) break; // stop if anything unexpected
+      }
+    }
+
+    board.position(game.fen(), true);
+    renderMoves();
+  }
+
+  async function fetchCurrentGameId() {
+    // Most direct: current-game
+    const url = `https://lichess.org/api/user/${encodeURIComponent(USER)}/current-game?pgnInJson=true&_=${Date.now()}`;
     const res = await fetch(url, {
       headers: { "accept": "application/json" },
       cache: "no-store"
     });
     if (!res.ok) return null;
-    return await res.json();
+
+    const data = await res.json();
+    const id = data?.id || data?.gameId || data?.game?.id || null;
+    return id;
   }
 
-  // 2) Fallback: /api/games/user/<u>?ongoing=true (NDJSON)
-  async function fetchOngoingFromNdjson() {
-    const url = `https://lichess.org/api/games/user/${encodeURIComponent(USER)}?max=1&ongoing=true&_=${Date.now()}`;
-    const res = await fetch(url, { headers: { "accept": "application/x-ndjson" }, cache: "no-store" });
-    if (!res.ok) return null;
-    const txt = await res.text();
-    const line = txt.split("\n").find(s => s.trim().length);
-    if (!line) return null;
-    try { return JSON.parse(line); } catch { return null; }
-  }
-
-  function moveSignatureFromCurrentGamePayload(data) {
-    // Prefer "moves" if present; else use PGN text if present.
-    // This signature changing is what triggers an embed refresh.
-    return data?.moves || data?.pgn || data?.pgnInJson || null;
-  }
-
-  async function tick() {
-    try {
-      let gameId = null;
-      let opponent = "";
-      let moveSig = null;
-
-      const cg = await fetchCurrentGame();
-      if (cg && (cg.id || cg.gameId || cg?.game?.id)) {
-        gameId = cg.id || cg.gameId || cg.game.id;
-        moveSig = moveSignatureFromCurrentGamePayload(cg);
-
-        // Try to extract opponent if possible (field names vary)
-        const w = cg?.players?.white?.user?.name || cg?.players?.white?.user?.id || "";
-        const b = cg?.players?.black?.user?.name || cg?.players?.black?.user?.id || "";
-        if (w && b) opponent = (w.toLowerCase() === USER ? b : w);
-      } else {
-        // Fallback to NDJSON ongoing query
-        const og = await fetchOngoingFromNdjson();
-        if (og?.id) {
-          gameId = og.id;
-          const w = og?.players?.white?.user?.name || og?.players?.white?.user?.id || "";
-          const b = og?.players?.black?.user?.name || og?.players?.black?.user?.id || "";
-          if (w && b) opponent = (w.toLowerCase() === USER ? b : w);
-        }
-      }
-
-      setUpdated();
-
-      if (!gameId) {
-        statusEl.textContent = "No ongoing game — showing the most recent game.";
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          setGameLink(saved);
-          if (saved !== currentGameId) {
-            currentGameId = saved;
-            lastMoveSig = null;
-            hardReloadEmbed(saved);
-          }
-        } else {
-          setGameLink(null);
-          iframe.removeAttribute("src");
-        }
-        return;
-      }
-
-      statusEl.textContent = opponent
-        ? `Currently playing vs ${opponent}`
-        : `Currently playing`;
-
-      setGameLink(gameId);
-      localStorage.setItem(STORAGE_KEY, gameId);
-
-      // New game -> load immediately
-      if (gameId !== currentGameId) {
-        currentGameId = gameId;
-        lastMoveSig = moveSig || null;
-        hardReloadEmbed(gameId);
-        return;
-      }
-
-      // Same game -> refresh only when moves/PGN changed (or if moveSig missing, refresh periodically)
-      if (moveSig) {
-        if (moveSig !== lastMoveSig) {
-          lastMoveSig = moveSig;
-          hardReloadEmbed(gameId);
-        }
-      } else {
-        // If we couldn't get a move signature, do a gentle periodic refresh every tick
-        hardReloadEmbed(gameId);
-      }
-
-    } catch (e) {
-      setUpdated();
-      statusEl.textContent = "Failed to fetch live game — retrying…";
+  function stopStream() {
+    if (streamAbort) {
+      streamAbort.abort();
+      streamAbort = null;
     }
   }
 
-  tick();
-  // Don’t poll too aggressively; 4–6s is a good balance
-  setInterval(tick, 5000);
+  async function startStream(gameId) {
+    stopStream();
+    streamAbort = new AbortController();
+
+    currentGameId = gameId;
+    setLinkGame(gameId);
+    setStatus(`Currently playing — game id: ${gameId}`);
+    metaEl.textContent = "";
+    movesEl.textContent = "";
+
+    // Stream updates in (NDJSON)
+    const url = `https://lichess.org/api/stream/game/${encodeURIComponent(gameId)}`;
+    const res = await fetch(url, {
+      headers: { "accept": "application/x-ndjson" },
+      cache: "no-store",
+      signal: streamAbort.signal
+    });
+
+    if (!res.ok || !res.body) {
+      setStatus("Live stream unavailable — retrying…");
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() || "";
+
+      for (const line of lines) {
+        const s = line.trim();
+        if (!s) continue;
+
+        let msg;
+        try { msg = JSON.parse(s); } catch { continue; }
+
+        if (msg.type === "gameFull") {
+          // initial snapshot
+          const w = msg?.white?.name || msg?.white?.id || "";
+          const b = msg?.black?.name || msg?.black?.id || "";
+          const opp = (w && b) ? ((String(w).toLowerCase() === USER) ? b : w) : "";
+          metaEl.textContent = opp ? `Opponent: ${opp}` : "";
+
+          applyUciMoves(msg?.state?.moves || "");
+        } else if (msg.type === "gameState") {
+          // incremental updates
+          applyUciMoves(msg?.moves || "");
+        } else if (msg.type === "chatLine") {
+          // ignore
+        }
+      }
+    }
+  }
+
+  async function mainLoop() {
+    try {
+      const id = await fetchCurrentGameId();
+
+      if (!id) {
+        // no ongoing game
+        if (currentGameId) {
+          currentGameId = null;
+          stopStream();
+        }
+        setLinkGame(null);
+        setStatus("No ongoing game.");
+        return;
+      }
+
+      if (id !== currentGameId) {
+        await startStream(id); // start realtime streaming
+      } else {
+        // already streaming the same game
+        setStatus(`Currently playing — game id: ${id}`);
+      }
+    } catch (e) {
+      // network / CORS / transient issues
+      setStatus("Failed to detect live game — retrying…");
+    }
+  }
+
+  ensureBoard();
+  mainLoop();
+  // check whether a NEW game started (stream handles move updates; polling only for game switches)
+  setInterval(mainLoop, 8000);
 })();
 </script>
+<!-- ===== /pengyibot Live (REALTIME) ===== -->
+
+
+
+
+
+
+
+
+        
 
         <!-- Contact -->
         <section class="section">
