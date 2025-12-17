@@ -353,12 +353,24 @@
     </p>
 </section>
 
-        <section id="lichess-live" style="max-width: 980px; margin: 24px auto; padding: 0 16px;">
+
+
+<section id="lichess-live" style="max-width: 980px; margin: 24px auto; padding: 0 16px;">
   <h2 style="margin: 0 0 8px;">♟️ pengyibot Live</h2>
 
+  <p style="margin: 0 0 10px; opacity: .85; line-height: 1.5;">
+    This is a live view of my Lichess bot <strong>pengyibot</strong>. If the bot is currently playing, the board below
+    will refresh automatically. If not, it will show the last known game.
+  </p>
+
   <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; opacity:.85; margin-bottom:10px;">
-    <span id="lichess-status">检测中…</span>
-    <a href="https://lichess.org/@/pengyibot/tv" target="_blank" rel="noopener">打开 Lichess TV 页</a>
+    <span id="lichess-status">Checking status…</span>
+    <a id="lichess-game-link" href="https://lichess.org/@/pengyibot" target="_blank" rel="noopener">
+      Open on Lichess
+    </a>
+    <a href="https://lichess.org/@/pengyibot/tv" target="_blank" rel="noopener">
+      Open TV page
+    </a>
   </div>
 
   <iframe
@@ -372,63 +384,101 @@
 <script>
 (() => {
   const USER = "pengyibot";
+
   const statusEl = document.getElementById("lichess-status");
   const iframe = document.getElementById("lichess-iframe");
+  const gameLink = document.getElementById("lichess-game-link");
 
-  const KEY = "lichess_last_game_" + USER;
-  let lastShown = null;
+  const STORAGE_KEY = "lichess_last_game_" + USER;
 
-  function showGame(gameId, note) {
-    // Lichess 官方的 game embed 形态就是 /embed/<gameId>?theme=...&bg=...  :contentReference[oaicite:1]{index=1}
-    iframe.src = `https://lichess.org/embed/${gameId}?theme=auto&bg=auto`;
-    lastShown = gameId;
-    localStorage.setItem(KEY, gameId);
-    statusEl.textContent = note || ("正在对局中：" + gameId);
-  }
+  let currentGameId = null;
+  let refreshTimer = null;
 
-  function showIdle() {
-    const saved = localStorage.getItem(KEY);
-    if (saved) {
-      showGame(saved, "暂无正在进行的对局（显示最近一盘）");
-    } else {
-      iframe.removeAttribute("src");
-      statusEl.textContent = "暂无正在进行的对局";
+  function stopAutoRefresh() {
+    if (refreshTimer) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
     }
   }
 
-  async function poll() {
+  function setGameLink(gameId) {
+    if (gameId) {
+      gameLink.href = `https://lichess.org/${gameId}`;
+      gameLink.textContent = "Open current game";
+    } else {
+      gameLink.href = `https://lichess.org/@/${USER}`;
+      gameLink.textContent = "Open on Lichess";
+    }
+  }
+
+  function startAutoRefresh(gameId) {
+    stopAutoRefresh();
+
+    const base = `https://lichess.org/embed/${gameId}?theme=auto&bg=auto`;
+
+    // Load once
+    iframe.src = base;
+
+    // Refresh every ~3 seconds (avoid too frequent reloads)
+    refreshTimer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      iframe.src = base + `&t=${Date.now()}`; // cache-buster to force update
+    }, 3000);
+  }
+
+  function showIdle() {
+    stopAutoRefresh();
+
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      currentGameId = saved;
+      statusEl.textContent = "No ongoing game — showing the most recent game.";
+      setGameLink(saved);
+      iframe.src = `https://lichess.org/embed/${saved}?theme=auto&bg=auto&t=${Date.now()}`;
+    } else {
+      statusEl.textContent = "No ongoing game.";
+      setGameLink(null);
+      iframe.removeAttribute("src");
+    }
+  }
+
+  async function pollGameId() {
     try {
-      // withGameMetas=true 会在 playing 字段里返回正在下的那盘（含 id 等信息） :contentReference[oaicite:2]{index=2}
       const url = `https://lichess.org/api/users/status?ids=${encodeURIComponent(USER)}&withGameMetas=true`;
       const res = await fetch(url, { headers: { "accept": "application/json" } });
+
       if (res.status === 429) {
-        statusEl.textContent = "请求太频繁（429），稍后会自动恢复";
+        statusEl.textContent = "Rate limited (429) — retrying…";
         return;
       }
       if (!res.ok) throw new Error("HTTP " + res.status);
 
       const arr = await res.json();
-      const u = arr && arr[0];
-      const gameId = u && u.playing && u.playing.id;
+      const gameId = arr?.[0]?.playing?.id || null;
 
-      if (gameId) {
-        if (gameId !== lastShown) showGame(gameId);
-        else statusEl.textContent = "正在对局中：" + gameId;
-      } else {
+      if (!gameId) {
         showIdle();
+        return;
+      }
+
+      statusEl.textContent = `Currently playing — game id: ${gameId}`;
+      setGameLink(gameId);
+      localStorage.setItem(STORAGE_KEY, gameId);
+
+      if (gameId !== currentGameId) {
+        currentGameId = gameId;
+        startAutoRefresh(gameId);
       }
     } catch (e) {
-      statusEl.textContent = "获取对局失败（网络/接口波动）";
+      statusEl.textContent = "Failed to fetch live status — will retry…";
     }
   }
 
-  poll();
-  // Lichess 有 rate limit，别刷太快；5~10 秒一次比较稳妥 :contentReference[oaicite:3]{index=3}
-  setInterval(poll, 6000);
+  pollGameId();
+  setInterval(pollGameId, 6000);
 })();
 </script>
 
-        
 
         <!-- Contact -->
         <section class="section">
