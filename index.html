@@ -354,17 +354,16 @@
 </section>
 
 
-
 <section id="lichess-live" style="max-width: 980px; margin: 24px auto; padding: 0 16px;">
   <h2 style="margin: 0 0 8px;">♟️ pengyibot Live</h2>
 
   <p style="margin: 0 0 10px; opacity: .85; line-height: 1.5;">
-    This is a live view of my Lichess bot <strong>pengyibot</strong>. If the bot is currently playing, the board below
-    will refresh automatically. If not, it will show the last known game.
+    This is a live view of my Lichess bot <strong>pengyibot</strong>.
+    When the bot is playing, the board below will auto-refresh.
   </p>
 
   <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; opacity:.85; margin-bottom:10px;">
-    <span id="lichess-status">Checking status…</span>
+    <span id="lichess-status">Checking live game…</span>
     <a id="lichess-game-link" href="https://lichess.org/@/pengyibot" target="_blank" rel="noopener">
       Open on Lichess
     </a>
@@ -384,7 +383,6 @@
 <script>
 (() => {
   const USER = "pengyibot";
-
   const statusEl = document.getElementById("lichess-status");
   const iframe = document.getElementById("lichess-iframe");
   const gameLink = document.getElementById("lichess-game-link");
@@ -411,27 +409,45 @@
     }
   }
 
+  // NDJSON helper: take the first non-empty line and parse JSON
+  async function fetchFirstNdjsonObject(url) {
+    const res = await fetch(url, {
+      headers: { "accept": "application/x-ndjson" },
+      cache: "no-store"
+    });
+
+    if (res.status === 429) {
+      // Lichess rate limiting guidance: if you hit 429, back off :contentReference[oaicite:2]{index=2}
+      throw new Error("RATE_LIMIT");
+    }
+    if (!res.ok) return null;
+
+    const txt = await res.text();
+    const line = txt.split("\n").find(s => s.trim().length > 0);
+    if (!line) return null;
+
+    try { return JSON.parse(line); } catch { return null; }
+  }
+
   function startAutoRefresh(gameId) {
     stopAutoRefresh();
-
     const base = `https://lichess.org/embed/${gameId}?theme=auto&bg=auto`;
 
-    // Load once
-    iframe.src = base;
+    // initial load
+    iframe.src = base + `&t=${Date.now()}`;
 
-    // Refresh every ~3 seconds (avoid too frequent reloads)
+    // refresh (reload iframe) every ~3s
     refreshTimer = setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      iframe.src = base + `&t=${Date.now()}`; // cache-buster to force update
+      iframe.src = base + `&t=${Date.now()}`; // cache-buster
     }, 3000);
   }
 
-  function showIdle() {
+  function showLastKnownGame() {
     stopAutoRefresh();
-
     const saved = localStorage.getItem(STORAGE_KEY);
+
     if (saved) {
-      currentGameId = saved;
       statusEl.textContent = "No ongoing game — showing the most recent game.";
       setGameLink(saved);
       iframe.src = `https://lichess.org/embed/${saved}?theme=auto&bg=auto&t=${Date.now()}`;
@@ -442,43 +458,57 @@
     }
   }
 
-  async function pollGameId() {
+  // Prefer: /api/games/user/{username}?ongoing=true (more reliable than status in your case)
+  async function pollOngoingGame() {
     try {
-      const url = `https://lichess.org/api/users/status?ids=${encodeURIComponent(USER)}&withGameMetas=true`;
-      const res = await fetch(url, { headers: { "accept": "application/json" } });
+      // add a timestamp to bypass any intermediate caching
+      const ongoingUrl = `https://lichess.org/api/games/user/${encodeURIComponent(USER)}?max=1&ongoing=true&_=${Date.now()}`;
+      const g = await fetchFirstNdjsonObject(ongoingUrl);
 
-      if (res.status === 429) {
-        statusEl.textContent = "Rate limited (429) — retrying…";
+      if (g && g.id) {
+        const gameId = g.id;
+
+        // Try to show opponent name if available
+        let opp = "";
+        try {
+          const white = g.players?.white?.user?.name || g.players?.white?.user?.id;
+          const black = g.players?.black?.user?.name || g.players?.black?.user?.id;
+          opp = (white && black) ? (white.toLowerCase() === USER ? black : white) : "";
+        } catch {}
+
+        statusEl.textContent = opp
+          ? `Currently playing vs ${opp} — game id: ${gameId}`
+          : `Currently playing — game id: ${gameId}`;
+
+        setGameLink(gameId);
+        localStorage.setItem(STORAGE_KEY, gameId);
+
+        if (gameId !== currentGameId) {
+          currentGameId = gameId;
+          startAutoRefresh(gameId);
+        }
         return;
       }
-      if (!res.ok) throw new Error("HTTP " + res.status);
 
-      const arr = await res.json();
-      const gameId = arr?.[0]?.playing?.id || null;
+      // no ongoing found -> show last known
+      currentGameId = null;
+      showLastKnownGame();
 
-      if (!gameId) {
-        showIdle();
-        return;
-      }
-
-      statusEl.textContent = `Currently playing — game id: ${gameId}`;
-      setGameLink(gameId);
-      localStorage.setItem(STORAGE_KEY, gameId);
-
-      if (gameId !== currentGameId) {
-        currentGameId = gameId;
-        startAutoRefresh(gameId);
-      }
     } catch (e) {
-      statusEl.textContent = "Failed to fetch live status — will retry…";
+      if (String(e.message || e) === "RATE_LIMIT") {
+        statusEl.textContent = "Rate limited (429) — pausing briefly…";
+        // back off a bit
+        stopAutoRefresh();
+        return;
+      }
+      statusEl.textContent = "Failed to fetch live game — retrying…";
     }
   }
 
-  pollGameId();
-  setInterval(pollGameId, 6000);
+  pollOngoingGame();
+  setInterval(pollOngoingGame, 6000);
 })();
 </script>
-
 
         <!-- Contact -->
         <section class="section">
