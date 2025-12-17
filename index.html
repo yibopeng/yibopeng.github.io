@@ -359,11 +359,12 @@
 
   <p style="margin: 0 0 10px; opacity: .85; line-height: 1.5;">
     This is a live view of my Lichess bot <strong>pengyibot</strong>.
-    When the bot is playing, the board below will auto-refresh.
+    When the bot is playing, the board will refresh automatically as the game progresses.
   </p>
 
   <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; opacity:.85; margin-bottom:10px;">
     <span id="lichess-status">Checking live game…</span>
+    <span id="lichess-updated" style="opacity:.7;"></span>
     <a id="lichess-game-link" href="https://lichess.org/@/pengyibot" target="_blank" rel="noopener">
       Open on Lichess
     </a>
@@ -383,20 +384,24 @@
 <script>
 (() => {
   const USER = "pengyibot";
-  const statusEl = document.getElementById("lichess-status");
-  const iframe = document.getElementById("lichess-iframe");
-  const gameLink = document.getElementById("lichess-game-link");
+
+  const statusEl  = document.getElementById("lichess-status");
+  const updatedEl = document.getElementById("lichess-updated");
+  const iframe    = document.getElementById("lichess-iframe");
+  const gameLink  = document.getElementById("lichess-game-link");
 
   const STORAGE_KEY = "lichess_last_game_" + USER;
 
   let currentGameId = null;
-  let refreshTimer = null;
+  let lastMoveSig = null;
 
-  function stopAutoRefresh() {
-    if (refreshTimer) {
-      clearInterval(refreshTimer);
-      refreshTimer = null;
-    }
+  function nowStr() {
+    const d = new Date();
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  function setUpdated() {
+    updatedEl.textContent = `Last checked: ${nowStr()}`;
   }
 
   function setGameLink(gameId) {
@@ -409,104 +414,123 @@
     }
   }
 
-  // NDJSON helper: take the first non-empty line and parse JSON
-  async function fetchFirstNdjsonObject(url) {
+  // Force a real reload (some browsers/cache layers can be stubborn)
+  function hardReloadEmbed(gameId) {
+    const base = `https://lichess.org/embed/${gameId}?theme=auto&bg=auto`;
+    iframe.src = "about:blank";
+    setTimeout(() => {
+      iframe.src = base + `&t=${Date.now()}`; // cache-buster
+    }, 60);
+  }
+
+  // 1) Most reliable for "is user currently playing": /api/user/<u>/current-game
+  async function fetchCurrentGame() {
+    const url = `https://lichess.org/api/user/${encodeURIComponent(USER)}/current-game?pgnInJson=true`;
     const res = await fetch(url, {
-      headers: { "accept": "application/x-ndjson" },
+      headers: { "accept": "application/json" },
       cache: "no-store"
     });
-
-    if (res.status === 429) {
-      // Lichess rate limiting guidance: if you hit 429, back off :contentReference[oaicite:2]{index=2}
-      throw new Error("RATE_LIMIT");
-    }
     if (!res.ok) return null;
+    return await res.json();
+  }
 
+  // 2) Fallback: /api/games/user/<u>?ongoing=true (NDJSON)
+  async function fetchOngoingFromNdjson() {
+    const url = `https://lichess.org/api/games/user/${encodeURIComponent(USER)}?max=1&ongoing=true&_=${Date.now()}`;
+    const res = await fetch(url, { headers: { "accept": "application/x-ndjson" }, cache: "no-store" });
+    if (!res.ok) return null;
     const txt = await res.text();
-    const line = txt.split("\n").find(s => s.trim().length > 0);
+    const line = txt.split("\n").find(s => s.trim().length);
     if (!line) return null;
-
     try { return JSON.parse(line); } catch { return null; }
   }
 
-  function startAutoRefresh(gameId) {
-    stopAutoRefresh();
-    const base = `https://lichess.org/embed/${gameId}?theme=auto&bg=auto`;
-
-    // initial load
-    iframe.src = base + `&t=${Date.now()}`;
-
-    // refresh (reload iframe) every ~3s
-    refreshTimer = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      iframe.src = base + `&t=${Date.now()}`; // cache-buster
-    }, 3000);
+  function moveSignatureFromCurrentGamePayload(data) {
+    // Prefer "moves" if present; else use PGN text if present.
+    // This signature changing is what triggers an embed refresh.
+    return data?.moves || data?.pgn || data?.pgnInJson || null;
   }
 
-  function showLastKnownGame() {
-    stopAutoRefresh();
-    const saved = localStorage.getItem(STORAGE_KEY);
-
-    if (saved) {
-      statusEl.textContent = "No ongoing game — showing the most recent game.";
-      setGameLink(saved);
-      iframe.src = `https://lichess.org/embed/${saved}?theme=auto&bg=auto&t=${Date.now()}`;
-    } else {
-      statusEl.textContent = "No ongoing game.";
-      setGameLink(null);
-      iframe.removeAttribute("src");
-    }
-  }
-
-  // Prefer: /api/games/user/{username}?ongoing=true (more reliable than status in your case)
-  async function pollOngoingGame() {
+  async function tick() {
     try {
-      // add a timestamp to bypass any intermediate caching
-      const ongoingUrl = `https://lichess.org/api/games/user/${encodeURIComponent(USER)}?max=1&ongoing=true&_=${Date.now()}`;
-      const g = await fetchFirstNdjsonObject(ongoingUrl);
+      let gameId = null;
+      let opponent = "";
+      let moveSig = null;
 
-      if (g && g.id) {
-        const gameId = g.id;
+      const cg = await fetchCurrentGame();
+      if (cg && (cg.id || cg.gameId || cg?.game?.id)) {
+        gameId = cg.id || cg.gameId || cg.game.id;
+        moveSig = moveSignatureFromCurrentGamePayload(cg);
 
-        // Try to show opponent name if available
-        let opp = "";
-        try {
-          const white = g.players?.white?.user?.name || g.players?.white?.user?.id;
-          const black = g.players?.black?.user?.name || g.players?.black?.user?.id;
-          opp = (white && black) ? (white.toLowerCase() === USER ? black : white) : "";
-        } catch {}
+        // Try to extract opponent if possible (field names vary)
+        const w = cg?.players?.white?.user?.name || cg?.players?.white?.user?.id || "";
+        const b = cg?.players?.black?.user?.name || cg?.players?.black?.user?.id || "";
+        if (w && b) opponent = (w.toLowerCase() === USER ? b : w);
+      } else {
+        // Fallback to NDJSON ongoing query
+        const og = await fetchOngoingFromNdjson();
+        if (og?.id) {
+          gameId = og.id;
+          const w = og?.players?.white?.user?.name || og?.players?.white?.user?.id || "";
+          const b = og?.players?.black?.user?.name || og?.players?.black?.user?.id || "";
+          if (w && b) opponent = (w.toLowerCase() === USER ? b : w);
+        }
+      }
 
-        statusEl.textContent = opp
-          ? `Currently playing vs ${opp} — game id: ${gameId}`
-          : `Currently playing — game id: ${gameId}`;
+      setUpdated();
 
-        setGameLink(gameId);
-        localStorage.setItem(STORAGE_KEY, gameId);
-
-        if (gameId !== currentGameId) {
-          currentGameId = gameId;
-          startAutoRefresh(gameId);
+      if (!gameId) {
+        statusEl.textContent = "No ongoing game — showing the most recent game.";
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          setGameLink(saved);
+          if (saved !== currentGameId) {
+            currentGameId = saved;
+            lastMoveSig = null;
+            hardReloadEmbed(saved);
+          }
+        } else {
+          setGameLink(null);
+          iframe.removeAttribute("src");
         }
         return;
       }
 
-      // no ongoing found -> show last known
-      currentGameId = null;
-      showLastKnownGame();
+      statusEl.textContent = opponent
+        ? `Currently playing vs ${opponent}`
+        : `Currently playing`;
 
-    } catch (e) {
-      if (String(e.message || e) === "RATE_LIMIT") {
-        statusEl.textContent = "Rate limited (429) — pausing briefly…";
-        // back off a bit
-        stopAutoRefresh();
+      setGameLink(gameId);
+      localStorage.setItem(STORAGE_KEY, gameId);
+
+      // New game -> load immediately
+      if (gameId !== currentGameId) {
+        currentGameId = gameId;
+        lastMoveSig = moveSig || null;
+        hardReloadEmbed(gameId);
         return;
       }
+
+      // Same game -> refresh only when moves/PGN changed (or if moveSig missing, refresh periodically)
+      if (moveSig) {
+        if (moveSig !== lastMoveSig) {
+          lastMoveSig = moveSig;
+          hardReloadEmbed(gameId);
+        }
+      } else {
+        // If we couldn't get a move signature, do a gentle periodic refresh every tick
+        hardReloadEmbed(gameId);
+      }
+
+    } catch (e) {
+      setUpdated();
       statusEl.textContent = "Failed to fetch live game — retrying…";
     }
   }
 
-  pollOngoingGame();
-  setInterval(pollOngoingGame, 6000);
+  tick();
+  // Don’t poll too aggressively; 4–6s is a good balance
+  setInterval(tick, 5000);
 })();
 </script>
 
